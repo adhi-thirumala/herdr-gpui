@@ -2,7 +2,7 @@
 //! a compatible Herdr is saved without a terminal; anything that needs SSH or
 //! installation prompts runs in this app on a terminal that a local workspace
 //! shows (see `setup_relay`), so no remote installer policy is duplicated here.
-use crate::{Error, Result};
+use crate::{Error, Result, config::Config};
 use herdr_client::{Destination, HostProbe, SavedHost, SshCommand, SshTarget};
 use std::{
     io::Read,
@@ -105,8 +105,9 @@ impl Drop for Claim {
 pub(super) fn claim(request: &Request) -> Result<Claim> {
     let destination = herdr_client::resolve_destination(request.ssh_target())?;
     let claim = Claim::acquire(destination, &request.session)?;
-    ensure_unsaved(request, &claim, &load_catalog()?, |target| {
-        request.resolve(target)
+    let config = Config::load()?;
+    ensure_unsaved(request, &claim, &load_catalog()?, |host| {
+        resolve_saved(&config, host)
     })?;
     Ok(claim)
 }
@@ -167,8 +168,9 @@ fn rename_with(executable: &std::ffi::OsStr, id: &str, label: &str) -> Result<()
 
 /// Check the catalog on disk again, right before a step that saves.
 pub(super) fn verify_unsaved(request: &Request, claim: &Claim) -> Result<()> {
-    ensure_unsaved(request, claim, &load_catalog()?, |target| {
-        request.resolve(target)
+    let config = Config::load()?;
+    ensure_unsaved(request, claim, &load_catalog()?, |host| {
+        resolve_saved(&config, host)
     })
 }
 
@@ -187,18 +189,32 @@ fn load_catalog() -> Result<Vec<SavedHost>> {
     Ok(hosts)
 }
 
+/// The [`SshTarget`] a saved host connects with: its own configured command,
+/// by catalog ID, so one alias's `-F` file never implicates another machine.
+fn saved_ssh_target(config: &Config, host: &SavedHost) -> SshTarget {
+    SshTarget {
+        target: host.target.clone(),
+        command: config.device_ssh_command(&host.id),
+    }
+}
+
+/// Resolve a saved host's target with its own configured command.
+fn resolve_saved(config: &Config, host: &SavedHost) -> Option<Destination> {
+    herdr_client::resolve_destination(&saved_ssh_target(config, host)).ok()
+}
+
 /// The first saved profile, in catalog order, that reaches the claimed host
 /// and session. `machine add` appends, so the first one is the oldest.
 fn first_saved<'a>(
     request: &Request,
     claim: &Claim,
     hosts: &'a [SavedHost],
-    resolve: impl Fn(&str) -> Option<Destination>,
+    resolve: impl Fn(&SavedHost) -> Option<Destination>,
 ) -> Option<&'a SavedHost> {
     hosts.iter().find(|host| {
         host.session == request.session
             && (host.target == request.target.target
-                || resolve(&host.target).as_ref() == Some(&claim.destination))
+                || resolve(host).as_ref() == Some(&claim.destination))
     })
 }
 
@@ -206,7 +222,7 @@ fn ensure_unsaved(
     request: &Request,
     claim: &Claim,
     hosts: &[SavedHost],
-    resolve: impl Fn(&str) -> Option<Destination>,
+    resolve: impl Fn(&SavedHost) -> Option<Destination>,
 ) -> Result<()> {
     match first_saved(request, claim, hosts, resolve) {
         Some(host) => {
@@ -310,14 +326,6 @@ impl Request {
 
     pub(super) fn has_custom_command(&self) -> bool {
         !self.target.command.is_default()
-    }
-
-    fn resolve(&self, target: &str) -> Option<Destination> {
-        herdr_client::resolve_destination(&SshTarget {
-            target: target.to_owned(),
-            command: self.target.command.clone(),
-        })
-        .ok()
     }
 
     pub(super) fn label(&self) -> &str {
@@ -432,12 +440,13 @@ pub(super) fn save(request: &Request, claim: &Claim) -> Result<()> {
     if request.has_custom_command() {
         return custom_command::save(request, claim);
     }
+    let config = Config::load()?;
     save_with(
         crate::daemon::executable(),
         request,
         claim,
         load_catalog,
-        |target| request.resolve(target),
+        |host| resolve_saved(&config, host),
     )
 }
 
@@ -451,7 +460,7 @@ fn save_with(
     request: &Request,
     claim: &Claim,
     load: impl Fn() -> Result<Vec<SavedHost>>,
-    resolve: impl Fn(&str) -> Option<Destination> + Copy,
+    resolve: impl Fn(&SavedHost) -> Option<Destination> + Copy,
 ) -> Result<()> {
     let executable = executable.as_ref();
     ensure_unsaved(request, claim, &load()?, resolve)?;

@@ -6,6 +6,7 @@ use std::{os::unix::fs::PermissionsExt, path::Path, process::Command, sync::atom
 
 mod agent_name;
 mod parent;
+mod ssh_command;
 
 /// A home whose `herdr` logs each call and answers as Herdr would. A call
 /// whose arguments contain `$FAIL` exits 1. Its snapshot is `$HOME/snapshot`
@@ -314,37 +315,4 @@ fn only_plain_model_names_are_passed_on() {
     ] {
         assert!(!valid_model(bad), "{bad}");
     }
-}
-
-#[test]
-fn a_run_dispatched_elsewhere_is_reached_on_its_own_host() {
-    use crate::orchestrator::actions::target_of;
-    let mut on = session("r");
-    on.host = Some("devbox".into());
-    on.session = Some("work".into());
-    assert_eq!(
-        target_of(&on),
-        ConnectTarget::Ssh {
-            target: "devbox".into(),
-            session: "work".into()
-        }
-    );
-    on.session = None;
-    assert_eq!(
-        target_of(&on),
-        ConnectTarget::Ssh {
-            target: "devbox".into(),
-            session: "default".into()
-        }
-    );
-    on.host = None;
-    assert_eq!(target_of(&on), ConnectTarget::Local);
-    on.session = Some("dev".into());
-    assert_eq!(
-        target_of(&on),
-        ConnectTarget::Session {
-            name: "dev".into(),
-            development: false
-        }
-    );
 }

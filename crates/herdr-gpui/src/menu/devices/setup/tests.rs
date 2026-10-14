@@ -66,8 +66,9 @@ fn a_claim_blocks_a_second_add_until_released() -> Result<()> {
 fn saved_hosts_match_by_resolved_destination_not_spelling() -> Result<()> {
     let request = Request::new("penso@10.0.0.9", "Box", "", "")?;
     let claim = Claim::acquire(destination("match.test"), "default")?;
-    let resolve = |target: &str| {
-        (target == "box-alias" || target == "penso@10.0.0.9").then(|| destination("match.test"))
+    let resolve = |host: &SavedHost| {
+        (host.target == "box-alias" || host.target == "penso@10.0.0.9")
+            .then(|| destination("match.test"))
     };
     let mut other_session = saved('b', "Work", "box-alias");
     other_session.session = "work".into();
@@ -147,7 +148,7 @@ fn a_host_saved_by_another_client_meanwhile_keeps_only_the_first_profile() -> Re
     let (binary, log) = fake_cli("race")?;
     let request = Request::new("penso@box", "Mine", "", "")?;
     let claim = Claim::acquire(destination("race.test"), "default")?;
-    let resolve = |_: &str| Some(destination("race.test"));
+    let resolve = |_: &SavedHost| Some(destination("race.test"));
     let ours = saved('a', "Mine", "penso@box");
     let theirs = saved('b', "Theirs", "box-alias");
     let run = |after: Vec<SavedHost>| {
@@ -265,6 +266,8 @@ fn save_failures_keep_only_the_final_diagnostic_line() {
     assert_eq!(last_line(b""), "");
 }
 
+#[cfg(unix)]
+mod duplicate_resolution;
 #[cfg(unix)]
 mod server_restart;
 #[cfg(unix)]

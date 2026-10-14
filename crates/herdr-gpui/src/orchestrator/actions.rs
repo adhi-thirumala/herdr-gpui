@@ -8,12 +8,13 @@ use super::{
     error::script,
     model::{Backend, Workspace},
 };
+use crate::config::Config;
 use crate::teleport::{
     self, AgentKind, Envelope, FreshOrigin, Host, HostRepositories, HostSnapshot, SnapshotResult,
     WorkspaceCreated, WorktreeCreated,
 };
 use chrono::Utc;
-use herdr_client::{ConnectTarget, shell_quote};
+use herdr_client::{ConnectTarget, SavedHost, SshCommand, SshTarget, shell_quote};
 use std::{path::PathBuf, sync::atomic::AtomicBool};
 
 /// How long `herdr agent start` may wait for the agent to be ready.
@@ -192,14 +193,54 @@ fn host_of(site: &Site, session: &HerdrSession) -> Result<Host> {
     if (session.host.clone(), session.session.clone()) == place(&site.target) {
         return Ok(site.host.clone());
     }
-    Host::new(&target_of(session)).map_err(|_| Error::UnsupportedHost)
+    let command = match session.host {
+        Some(_) => {
+            let hosts = herdr_client::load_saved_hosts(false)
+                .map_err(script("Loading the run's saved device"))?;
+            let config =
+                Config::load().map_err(|source| Error::HostConfiguration(Box::new(source)))?;
+            saved_command(session, &hosts, &config)?
+        }
+        None => SshCommand::default(),
+    };
+    Host::new(&target_of(session, command)).map_err(|_| Error::UnsupportedHost)
+}
+
+/// Prefer an exact target/session profile. A session picked after saving may
+/// share several profiles, but their commands must agree before it is safe to use one.
+pub(super) fn saved_command(
+    session: &HerdrSession,
+    hosts: &[SavedHost],
+    config: &Config,
+) -> Result<SshCommand> {
+    let destination = session.host.as_deref().ok_or(Error::RunHostUnavailable)?;
+    let name = session.session.as_deref().unwrap_or("default");
+    let mut found = None;
+    let mut ambiguous = false;
+    for host in hosts.iter().filter(|host| host.target == destination) {
+        let command = config.device_ssh_command(&host.id);
+        if host.session == name {
+            return Ok(command);
+        }
+        match &found {
+            Some(saved) => ambiguous |= saved != &command,
+            None => found = Some(command),
+        }
+    }
+    if ambiguous {
+        return Err(Error::RunHostUnavailable);
+    }
+    found.ok_or(Error::RunHostUnavailable)
 }
 
 /// The target a session's host and Herdr session name.
-pub(super) fn target_of(session: &HerdrSession) -> ConnectTarget {
+pub(super) fn target_of(session: &HerdrSession, command: SshCommand) -> ConnectTarget {
     match (&session.host, &session.session) {
         (Some(destination), session) => ConnectTarget::Ssh {
-            target: destination.clone().into(),
+            target: SshTarget {
+                target: destination.clone(),
+                command,
+            },
             session: session.clone().unwrap_or_else(|| "default".into()),
         },
         (None, Some(name)) => ConnectTarget::Session {

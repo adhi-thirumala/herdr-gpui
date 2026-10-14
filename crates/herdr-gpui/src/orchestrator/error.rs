@@ -60,6 +60,10 @@ pub enum Error {
     },
     #[error("This host cannot run the orchestrator's scripts")]
     UnsupportedHost,
+    #[error("Could not load the run's SSH configuration: {0}")]
+    HostConfiguration(#[source] Box<crate::Error>),
+    #[error("This run's saved SSH device is missing or ambiguous")]
+    RunHostUnavailable,
     #[error("A saved Orchestrator tab names a folder that is not an absolute path")]
     InvalidCheckout,
     #[error("This folder is not inside a Git repository")]

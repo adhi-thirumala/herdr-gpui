@@ -209,7 +209,15 @@ impl Config {
     /// saved profile, so they keep the default `ssh`.
     pub(crate) fn ssh_command(&self, endpoint_id: &str) -> herdr_client::SshCommand {
         crate::endpoint::saved_profile_id(endpoint_id)
-            .and_then(|profile| self.devices.get(profile))
+            .map(|profile| self.device_ssh_command(profile))
+            .unwrap_or_default()
+    }
+
+    /// The SSH command a saved device's sessions run, by its raw catalog
+    /// profile ID. An unknown ID keeps the default `ssh`.
+    pub(crate) fn device_ssh_command(&self, profile_id: &str) -> herdr_client::SshCommand {
+        self.devices
+            .get(profile_id)
             .map(|device| device.ssh_command.clone())
             .unwrap_or_default()
     }
