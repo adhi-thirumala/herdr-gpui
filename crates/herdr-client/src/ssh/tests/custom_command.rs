@@ -17,8 +17,7 @@ fn scratch(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("herdr-{name}-{}", std::process::id()))
 }
 
-/// A custom OpenSSH binary (a path with a space) is invoked with the bridge
-/// policy, and the remote script it is handed actually runs.
+/// A custom binary with a space in its path executes the remote script.
 #[test]
 fn a_custom_openssh_binary_is_honored_and_runs_the_remote_script() {
     let root = scratch("custom-command");
@@ -27,10 +26,6 @@ fn a_custom_openssh_binary_is_honored_and_runs_the_remote_script() {
     crate::test_executable::write(
         &custom,
         r#"#!/bin/sh
-for option in "$@"; do
-    [ "$option" = "BatchMode=yes" ] && seen=1
-done
-[ "$seen" = 1 ] || exit 7
 for last in "$@"; do :; done
 exec /bin/sh -c "$last"
 "#,

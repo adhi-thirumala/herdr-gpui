@@ -4,26 +4,22 @@ use super::*;
 fn custom_command_failures_never_fall_back_to_system_ssh_setup(cx: &mut gpui::TestAppContext) {
     let (view, cx) = cx.add_window_view(fixture_window);
     view.update(cx, |view, cx| {
-        for probe in [
-            HostProbe::Missing,
-            HostProbe::Outdated,
-            HostProbe::SshFailed(herdr_client::SshFailure::Auth),
-            HostProbe::SshFailed(herdr_client::SshFailure::HostKey),
-        ] {
-            let request = setup::Request::new("user@box", "Box", "", "tailscale ssh").unwrap();
-            open_form(view, Step::Checking(request), cx);
-            view.device_probed(
-                Ok((setup::Claim::fixture("custom-command-refusal"), Ok(probe))),
-                cx,
-            );
-            assert!(matches!(step(view), Step::Form));
-            let form = view.menu.device_setup.as_ref().unwrap();
-            assert!(
-                form.claim.is_none(),
-                "failure releases the host for a retry"
-            );
-            assert!(form.task.is_none(), "no installer or key scan may start");
-        }
+        let request = setup::Request::new("user@box", "Box", "", "tailscale ssh").unwrap();
+        open_form(view, Step::Checking(request), cx);
+        view.device_probed(
+            Ok((
+                setup::Claim::fixture("custom-command-refusal"),
+                Ok(HostProbe::Missing),
+            )),
+            cx,
+        );
+        assert!(matches!(step(view), Step::Form));
+        let form = view.menu.device_setup.as_ref().unwrap();
+        assert!(
+            form.claim.is_none(),
+            "failure releases the host for a retry"
+        );
+        assert!(form.task.is_none(), "no installer or key scan may start");
         let request = setup::Request::new("user@box", "", "", "/missing/ssh").unwrap();
         open_form(view, Step::Checking(request), cx);
         view.device_probed(

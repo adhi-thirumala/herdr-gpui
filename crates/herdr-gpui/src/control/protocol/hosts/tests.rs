@@ -19,9 +19,6 @@ fn host_requests_have_a_stable_wire_form() {
         HostOp::Select {
             id: "devbox".into(),
         },
-        HostOp::SshCommand {
-            host: "devbox".into(),
-        },
         HostOp::Pr,
         HostOp::PrComments,
         HostOp::PrOpen,

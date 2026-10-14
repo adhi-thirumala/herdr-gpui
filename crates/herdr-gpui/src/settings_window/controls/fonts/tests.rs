@@ -176,6 +176,7 @@ fn selected_row_specimen_uses_face_and_effective_pending_size(cx: &mut TestAppCo
         view.controls.pending_sizes.clear();
         view.saving = false;
     });
+    assert_eq!(family_label(".SystemUIFont"), "System font");
 }
 
 #[gpui::test]

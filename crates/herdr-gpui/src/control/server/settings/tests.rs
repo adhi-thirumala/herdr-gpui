@@ -1,8 +1,14 @@
 use super::{
-    caffeine::{Timer, remaining, set_timed, supersede, timed},
+    caffeine::{Timer, remaining, set_timed, state_name, supersede, timed},
+    keys::reach_name,
     saves::font_names,
+    services::describe,
 };
-use crate::caffeine::{Cup, Mode};
+use crate::{
+    caffeine::{Cup, Mode},
+    keymap::Reach,
+    updater::State,
+};
 use std::time::{Duration, Instant};
 
 #[test]
@@ -47,6 +53,53 @@ fn a_timed_hold_ends_only_the_hold_it_was_set_on() {
     assert_eq!(
         remaining(timer, 3, Cup::On(Mode::UntilAgentsFinish), now),
         None
+    );
+}
+
+#[test]
+fn caffeine_states_have_stable_names() {
+    assert_eq!(state_name(Cup::Off), "off");
+    assert_eq!(state_name(Cup::Pending), "pending");
+    assert_eq!(state_name(Cup::On(Mode::Indefinite)), "on");
+    assert_eq!(
+        state_name(Cup::On(Mode::UntilAgentsFinish)),
+        "until_agents_finish"
+    );
+}
+
+#[test]
+fn every_reach_has_a_stable_name() {
+    let reaches = [
+        (Reach::Runs, "runs"),
+        (Reach::Shadowed, "shadowed"),
+        (Reach::Taken, "taken"),
+        (Reach::NeedsModifier, "needs_modifier"),
+        (Reach::NoPrefix, "no_prefix"),
+        (Reach::OverLimit, "over_limit"),
+        (Reach::Unsupported, "unsupported"),
+    ];
+    for (reach, name) in reaches {
+        assert_eq!(reach_name(reach), name);
+    }
+}
+
+#[test]
+fn update_states_are_named_with_their_version_or_reason() {
+    assert_eq!(
+        describe(&State::Disabled("Local build".into())),
+        ("disabled", Some("Local build"), None)
+    );
+    assert_eq!(describe(&State::Checking), ("checking", None, None));
+    assert_eq!(
+        describe(&State::Available {
+            version: "1.2.0".into(),
+            notes: "notes".into()
+        }),
+        ("available", None, Some("1.2.0"))
+    );
+    assert_eq!(
+        describe(&State::Error("offline".into())),
+        ("error", Some("offline"), None)
     );
 }
 

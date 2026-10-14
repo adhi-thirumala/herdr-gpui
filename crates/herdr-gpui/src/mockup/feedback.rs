@@ -100,9 +100,11 @@ impl Sent {
         match self {
             Self::Agent => "Sent to the agent".into(),
             Self::Kept => "Notes kept for `browser feedback`; not queued to an agent".into(),
-            Self::Unconfirmed { source } => format!(
-                "Delivery unconfirmed ({source}); check `browser feedback` before sending again"
-            ),
+            Self::Unconfirmed { source } => {
+                format!(
+                    "Delivery unconfirmed ({source}); check `browser feedback` before sending again"
+                )
+            }
             Self::File { path, unreached } => {
                 format!("Saved to {} ({unreached})", path.display())
             }

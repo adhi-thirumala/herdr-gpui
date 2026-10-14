@@ -285,6 +285,23 @@ fn stamps_always_increase() {
 }
 
 #[test]
+fn ages_read_plainly() {
+    assert_eq!(age(100, 130), "just now");
+    assert_eq!(age(0, 125), "2 min ago");
+    assert_eq!(age(0, 7200), "2 h ago");
+    assert_eq!(age(0, 200_000), "2 d ago");
+    assert_eq!(
+        age(100, 0),
+        "just now",
+        "a host clock ahead is not negative"
+    );
+    assert_eq!(
+        describe(&Error::CheckpointScript(herdr_client::Error::ScriptTimeout)),
+        "Checkpoint Git commands failed: host script made no progress before its deadline"
+    );
+}
+
+#[test]
 fn git_runs_only_on_ssh_hosts_and_the_users_own_daemon() {
     let mut live = crate::LiveState::default();
     let local = ConnectTarget::Local;

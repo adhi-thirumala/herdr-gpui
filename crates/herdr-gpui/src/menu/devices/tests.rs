@@ -32,6 +32,10 @@ fn only_a_present_herdr_is_saved_without_a_terminal() {
         Offer::for_probe(HostProbe::SshFailed(herdr_client::SshFailure::Auth)),
         Some(Offer::InstallKey)
     );
+    assert_eq!(
+        Offer::Install.question("dev@box"),
+        "Herdr was not detected on dev@box. Should we install it?"
+    );
 }
 
 fn open_form(view: &mut HerdrWindow, step: Step, cx: &mut Context<HerdrWindow>) {

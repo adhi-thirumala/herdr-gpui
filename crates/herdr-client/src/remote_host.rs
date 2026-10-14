@@ -2,7 +2,7 @@
 //! socket: an SSH target, or a WSL distribution on this Windows machine. Each
 //! owns its own named sessions, listed and deleted through its own Herdr CLI.
 use crate::{
-    ConnectTarget, RemoteSession, Result, delete_distro_session, delete_remote_session,
+    ConnectTarget, RemoteSession, Result, SshTarget, delete_distro_session, delete_remote_session,
     list_distro_sessions, list_remote_sessions,
 };
 
@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RemoteHost {
     /// A validated `[user@]host` SSH target.
-    Ssh(String),
+    Ssh(SshTarget),
     /// A WSL distribution name.
     Wsl(String),
 }

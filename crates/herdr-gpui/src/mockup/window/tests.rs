@@ -53,6 +53,15 @@ fn draw(cx: &mut VisualTestContext) {
     });
 }
 
+#[test]
+fn letters_and_widths() {
+    assert_eq!((letter(0), letter(2), letter(25)), ('A', 'C', 'Z'));
+    assert_eq!(letter(26), '?');
+    assert_eq!(Width::Narrow.of(px(300.)), px(198.));
+    assert_eq!(Width::Design.of(px(300.)), px(300.));
+    assert_eq!(Width::Wide.of(px(300.)), px(450.));
+}
+
 #[gpui::test]
 fn every_variant_is_framed_at_its_design_width(cx: &mut TestAppContext) {
     let (view, cx) = open(None, cx);

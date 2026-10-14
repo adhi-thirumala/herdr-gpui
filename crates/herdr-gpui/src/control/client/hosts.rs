@@ -61,6 +61,7 @@ pub(super) fn host(command: HostCommand, context: &Context) -> crate::Result<Out
     let op = match command {
         HostCommand::List => HostOp::List,
         HostCommand::Select(id) => HostOp::Select { id },
+        HostCommand::SshCommand(host) => HostOp::SshCommand { host },
     };
     match context.call(Request::Host, op)? {
         Response::Done { message } => Ok(Output::message(message)),

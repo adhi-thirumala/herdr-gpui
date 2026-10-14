@@ -132,6 +132,7 @@ fn result_marker_is_bounded_and_uses_the_preopened_file() -> anyhow::Result<()> 
     let text = fs::read_to_string(&held_path)?;
     assert!(text.starts_with("Update installed"));
     assert!(!text.contains("Recovery:"));
+    assert_eq!(fs::read(&outside)?, b"unchanged");
     Ok(())
 }
 

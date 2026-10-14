@@ -48,6 +48,10 @@ fn success_pastes_quoted_paths_to_captured_pane_or_popup(cx: &mut TestAppContext
         view.read_with(cx, |view, _| {
             assert!(view.file_transfer.is_none());
             assert!(view.local_error.is_none());
+            assert_eq!(
+                view.endpoints[0].toasts.entries.back().unwrap().1.title,
+                "Copy complete"
+            );
         });
         peer.sentinel(&view, cx);
     }
@@ -129,6 +133,7 @@ fn old_completion_preserves_replacement_and_reports_cleanup_failure(cx: &mut Tes
     ));
     assert!(!replacement.load(Ordering::Acquire));
     let notice = &view.endpoints[0].toasts.entries.back().unwrap().1;
+    assert_eq!(notice.title, "Remote cleanup failed");
     assert_eq!(
       notice.body.as_deref(),
       Some("No path was pasted. Temporary files may remain on the original host (Original host).")
@@ -185,6 +190,7 @@ fn backend_cleanup_failure_survives_host_switch_without_disclosing_diagnostics(
     let notices = &view.endpoints[1].toasts.entries;
     assert_eq!(notices.len(), 1);
     let notice = &notices.back().unwrap().1;
+    assert_eq!(notice.title, "Remote cleanup failed");
     assert!(notice.visible);
     assert_eq!(
       notice.body.as_deref(),
@@ -232,12 +238,17 @@ fn duplicate_copy_never_invokes_second_backend(cx: &mut TestAppContext) {
             &token,
             &view.file_transfer.as_ref().unwrap().cancelled
         ));
+        assert_eq!(
+            view.endpoints[0].toasts.entries.back().unwrap().1.title,
+            "Copy not started"
+        );
     });
     cx.run_until_parked();
     assert_eq!(calls.load(Ordering::Relaxed), 1);
     view.read_with(cx, |view, _| {
         assert!(view.file_transfer.is_none());
         let notice = &view.endpoints[0].toasts.entries.back().unwrap().1;
+        assert_eq!(notice.title, "Copy failed");
         assert_eq!(
             notice.body.as_deref(),
             Some(herdr_client::Error::UploadPathLimit.to_string().as_str())
