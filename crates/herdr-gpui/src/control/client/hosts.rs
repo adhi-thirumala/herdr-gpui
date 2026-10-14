@@ -4,9 +4,6 @@ mod text;
 
 pub(super) use text::bytes;
 
-#[cfg(test)]
-mod tests;
-
 use super::{Context, Output, unexpected};
 use crate::{
     cli::control::{CloudCommand, HostCommand, PortsCommand, PrCommand},
